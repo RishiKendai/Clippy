@@ -58,6 +58,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
         NSLog("Clippy started (\(Bundle.main.bundlePath)); accessibility=\(AXIsProcessTrusted()) postEvent=\(CGPreflightPostEventAccess())")
         monitor.start()
+        watchForAccessibilityGrant()
         reclassifyOnce()
         // Trashing the installed app removes Clippy completely (see Uninstaller).
         uninstaller.start()
@@ -110,6 +111,28 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             }.value
             UserDefaults.standard.set(version, forKey: key)
             if changed > 0 { model.reload() }
+        }
+    }
+
+    // MARK: Accessibility
+
+    private var accessibilityTimer: Timer?
+
+    /// When Accessibility isn't fully available at launch, check every second. Once the user turns
+    /// it on in System Settings, restart quietly if this process still can't post the ⌘V keystroke
+    /// (macOS only refreshes that on restart). A grant then takes effect without any manual step.
+    private func watchForAccessibilityGrant() {
+        guard !(AXIsProcessTrusted() && CGPreflightPostEventAccess()) else { return }
+        accessibilityTimer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { [weak self] _ in
+            MainActor.assumeIsolated {
+                guard let self, AXIsProcessTrusted() else { return }
+                self.accessibilityTimer?.invalidate()
+                self.accessibilityTimer = nil
+                if Permissions.needsRelaunchForEvents {
+                    NSLog("Clippy: Accessibility granted; restarting so pasting takes effect")
+                    Permissions.relaunch()
+                }
+            }
         }
     }
 

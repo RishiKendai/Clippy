@@ -25,8 +25,13 @@ enum LoginItemManager {
 
 /// Accessibility permission, needed to synthesize ⌘V into other apps.
 enum Permissions {
-    /// Both checks must pass for a synthesized ⌘V to reach another app.
-    static var accessibilityGranted: Bool { AXIsProcessTrusted() && CGPreflightPostEventAccess() }
+    /// The Accessibility switch in System Settings. `AXIsProcessTrusted` reflects changes live;
+    /// `CGPreflightPostEventAccess` only updates when the app restarts, so it must not gate pasting
+    /// (it kept a freshly granted Clippy from pasting until relaunch). See `needsRelaunchForEvents`.
+    static var accessibilityGranted: Bool { AXIsProcessTrusted() || CGPreflightPostEventAccess() }
+
+    /// Granted in System Settings, but this process still can't post events: it must restart.
+    static var needsRelaunchForEvents: Bool { AXIsProcessTrusted() && !CGPreflightPostEventAccess() }
 
     /// Shows the system prompt (once per app identity) if not yet granted.
     @discardableResult
@@ -34,7 +39,18 @@ enum Permissions {
         let options = ["AXTrustedCheckOptionPrompt": true] as CFDictionary
         let trusted = AXIsProcessTrustedWithOptions(options)
         if !CGPreflightPostEventAccess() { CGRequestPostEventAccess() }
-        return trusted && CGPreflightPostEventAccess()
+        return trusted || CGPreflightPostEventAccess()
+    }
+
+    /// Starts a new instance of Clippy and quits this one.
+    @MainActor
+    static func relaunch() {
+        let config = NSWorkspace.OpenConfiguration()
+        config.createsNewApplicationInstance = true
+        config.activates = false
+        NSWorkspace.shared.openApplication(at: Bundle.main.bundleURL, configuration: config) { _, _ in
+            DispatchQueue.main.async { NSApp.terminate(nil) }
+        }
     }
 
     static func openAccessibilitySettings() {
