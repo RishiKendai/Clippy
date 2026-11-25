@@ -21,6 +21,7 @@ Clippy is a macOS menu bar clipboard manager (Swift, SwiftUI + AppKit, SQLite). 
 - **Visible rows:** History and Pinned each show 10 rows by default (5–15 in Settings), then scroll; both shrink to fit the screen.
 - When "Ignore passwords and secrets" is on, skip concealed, transient and auto-generated content (nspasteboard.org markers).
 - Nothing leaves the Mac.
+- **Trash = uninstall.** When the installed app (in /Applications or ~/Applications) is moved to the Trash while running, it deletes its database, preferences and caches, unregisters the login item, resets its privacy permissions and quits (`Uninstaller`, `InstallLocation`). Dev builds in `build/` never do this. Replacing the app with an update doesn't count.
 
 ## Architecture
 ```
@@ -29,16 +30,18 @@ Sources/ClippyCore/        library, no UI, fully unit-tested
   Models.swift             ClipKind, Representation, PasteboardSnapshot, AnalyzedClip, ClipSummary (+ row label), HistoryLimits
   ClipRepository.swift     all queries + history rules (dedup, limits, retention, pin, search) and Migrations
   PasteboardCodec.swift    pasteboard ⇄ snapshot, secret markers, kind/plain text/thumbnail/hash
+  InstallLocation.swift    uninstall rules: installed vs dev copy, trash detection, data locations
 Sources/Clippy/            the menu bar app
   App/       main.swift, AppDelegate (wires everything, hotkeys, retention timer), StatusBarController (status item, popover, appearance, popover keyboard),
              PreviewPanel.swift (hover preview card beside the popover), Windows.swift (SettingsWindowController)
   Services/  AppSettings (UserDefaults), ClipboardMonitor (polls changeCount), PasteService (as-is / plain / ⌘V synth / restore),
-             SystemServices.swift (LoginItemManager, Permissions, HotKeyManager, KeyCode)
+             SystemServices.swift (LoginItemManager, Permissions, HotKeyManager, KeyCode),
+             Uninstaller (watches its own bundle; trash → wipe data and quit)
   UI/        Theme (DESIGN.md tokens + ViewState alias), ClipListModel (popover state, ThumbnailCache), PopoverView, ClipRow,
              SettingsView (tabs), Components/Controls.swift (ClippySwitch, SegmentedControl, StepperControl, ClippyButtonStyle, LinkButton)
 Tests/ClippyTests/         swift-testing: ClipRepositoryTests, PasteboardCodecTests
 Resources/                 Info.plist template (__VERSION__/__BUILD__), AppIcon.icns (regenerate: make icon)
-scripts/                   build-app.sh (debug|release → build/<config>/Clippy.app), make-dmg.sh, make-icon.swift
+scripts/                   build-app.sh (debug|release → build/<config>/Clippy.app), make-dmg.sh (+ make-dmg-background.swift), make-icon.swift
 Makefile                   entry point for everything below
 ```
 - **Database:** `~/Library/Application Support/Clippy/clippy.sqlite`, WAL mode.
@@ -49,7 +52,7 @@ Makefile                   entry point for everything below
 ## Build, run, test
 - Only the Command Line Tools are installed (no Xcode), so use SwiftPM through the Makefile.
 - `make dev` builds `build/debug/Clippy.app`, launches it with `open` (LaunchServices) and tails its log (`build/dev.log`); Ctrl-C quits. It stops any running Clippy first. **Never run the binary directly from a terminal:** macOS would then treat the terminal app (e.g. VS Code) as responsible for Clippy and check *its* Accessibility permission, so pasting silently fails.
-- `make build` builds a universal (arm64 + x86_64) `build/release/Clippy.app` and packages `dist/Clippy-$(VERSION).dmg` to share. `VERSION=1.1 BUILD_NUMBER=2 make build` sets the version.
+- `make build` builds a universal (arm64 + x86_64) `build/release/Clippy.app` and packages `dist/Clippy.dmg` to share (the version lives in the app's Info.plist, not the file name). The DMG opens as a styled drag-to-install window (background with an arrow, app left, Applications right). Finder sets that layout through AppleScript, so the first `make build` asks to let the terminal control Finder. `VERSION=1.1 BUILD_NUMBER=2 make build` sets the version.
 - `make install` builds the release app, copies it to `/Applications` and opens it. `make test` runs the tests, `make clean` deletes build output, and `make icon` regenerates the icon.
 - Run tests through `make test`. With the Command Line Tools, plain `swift test` can fail with "plugin for module 'TestingMacros' not found"; the Makefile passes `-plugin-path …/host/plugins/testing`.
 - **Sharing the DMG:** an ad-hoc signed app gets a Gatekeeper warning on other Macs. Recipients right-click the app and choose Open, or run `xattr -dr com.apple.quarantine /Applications/Clippy.app`. To ship it properly, sign with a Developer ID and notarize: `SIGN_IDENTITY="Developer ID Application: …" NOTARY_PROFILE=<notarytool profile> make build`.
@@ -90,3 +93,5 @@ Makefile                   entry point for everything below
 - 2026-11-25: Owner asked for source app and copy date in the hover preview (footer, `DD MMM, YYYY`). Rows still never show them.
 - 2026-11-25 (superseded the same day): ~~Duplicate text matched ignoring surrounding whitespace~~. **Owner: duplicates must be exactly the same text**; whitespace, newlines and case make a different clip. `classificationVersion` 4 restores exact hashes (merging only exact duplicates: pinned wins, else most recent).
 - 2026-11-25: History/Pinned visible rows are settings (default 10, 5–15). When both don't fit on screen the lists shrink (shorter one keeps its height if it fits in half). `maxContentHeight` is set from the screen each time the popover opens.
+- 2026-11-25: The DMG is `dist/Clippy.dmg` (no version in the name) with a styled drag-to-install window. The layout is written by Finder via AppleScript (built-in tools only; downloading `dmgbuild` was not an option).
+- 2026-11-25: Owner asked that trashing the app removes everything. macOS has no uninstall hook, so the running installed app watches its bundle (`O_EVTONLY` + `F_GETPATH`). After 2 s, if the bundle is in the Trash or gone and nothing replaced it, it wipes data, login item and TCC entries, removes its status item and exits. If Clippy isn't running when it's trashed, nothing can clean up.

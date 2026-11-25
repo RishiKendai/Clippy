@@ -226,6 +226,10 @@ Neutral `--hover` fill only. Never use the accent color for hover or selection.
 
 ---
 
+## 7b. Install & uninstall
+- **Install:** opening `Clippy.dmg` shows a 640 × 400 Finder window, no toolbar or status bar: a light backdrop, Clippy's icon (128px) on the left, an arrow, the Applications folder on the right, and the caption "Drag Clippy to Applications to install". The disk uses Clippy's icon.
+- **Uninstall:** dragging Clippy from Applications to the Trash removes it completely, with no prompt: clipboard history and database, settings, caches, the login item and its privacy permissions. The paperclip leaves the menu bar right away. Replacing Clippy with a newer copy keeps everything.
+
 ## 8. Build notes for Claude Code
 - Platform: macOS menu bar app. Suggested structure: `NSStatusItem` + `NSPopover` (or a borderless `NSPanel` for more control) hosting a SwiftUI view; Settings in a `Settings` scene or custom `NSWindow` with toolbar-style tabs.
 - Store clips in SQLite (kind, content/blob, source, copiedAt, lastUsedAt, pinned). Keep image data off the main thread; render row thumbnails from small cached downscales, never the full bitmap, to stay low-memory.
