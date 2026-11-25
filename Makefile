@@ -1,6 +1,6 @@
 # Clippy: build, run and package.
 #   make dev      build a debug Clippy.app and run it in the foreground (logs in this terminal, Ctrl-C quits)
-#   make build    universal release Clippy.app + dist/Clippy-$(VERSION).dmg to share
+#   make build    universal release Clippy.app + dist/Clippy.dmg to share
 #   make install  build release and copy Clippy.app to /Applications
 #   make test     run unit tests
 #   make clean    remove build output (build/, .build/, dist/)
@@ -12,7 +12,7 @@ export VERSION BUILD_NUMBER
 
 DEV_APP     := build/debug/Clippy.app
 RELEASE_APP := build/release/Clippy.app
-DMG         := dist/Clippy-$(VERSION).dmg
+DMG         := dist/Clippy.dmg
 
 .PHONY: dev build app dmg install test icon clean signing-cert
 
