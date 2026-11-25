@@ -15,6 +15,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var paste: PasteService!
     private var settingsWindow: SettingsWindowController!
     private var retentionTimer: Timer?
+    private let uninstaller = Uninstaller()
     private var cancellables: Set<AnyCancellable> = []
 
     private enum HotKeyID { static let open: UInt32 = 1, plainPaste: UInt32 = 2 }
@@ -58,6 +59,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         NSLog("Clippy started (\(Bundle.main.bundlePath)); accessibility=\(AXIsProcessTrusted()) postEvent=\(CGPreflightPostEventAccess())")
         monitor.start()
         reclassifyOnce()
+        // Trashing the installed app removes Clippy completely (see Uninstaller).
+        uninstaller.onUninstall = { [weak self] in
+            guard let self else { return }
+            self.monitor.stop()
+            self.retentionTimer?.invalidate()
+            HotKeyManager.shared.unregister(id: HotKeyID.open)
+            HotKeyManager.shared.unregister(id: HotKeyID.plainPaste)
+            self.settingsWindow.close()
+            self.statusBar.remove()
+        }
+        uninstaller.start()
         registerHotKeys()
         startRetention()
         observeSettings()
