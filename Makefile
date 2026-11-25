@@ -27,8 +27,14 @@ app:
 dmg:
 	@scripts/make-dmg.sh
 
+# A dev reinstall keeps your data: the uninstall cleanup agent is removed first (the new copy
+# writes a fresh one when it starts); otherwise a same-build reinstall counts as an uninstall.
+CLEANUP_AGENT := $(HOME)/Library/LaunchAgents/com.clippy.app.cleanup.plist
+
 install: app
 	@pkill -x Clippy 2>/dev/null || true
+	@launchctl bootout gui/$$(id -u)/com.clippy.app.cleanup 2>/dev/null || true
+	@rm -f $(CLEANUP_AGENT)
 	@rm -rf /Applications/Clippy.app
 	@cp -R $(RELEASE_APP) /Applications/Clippy.app
 	@echo "==> installed /Applications/Clippy.app"

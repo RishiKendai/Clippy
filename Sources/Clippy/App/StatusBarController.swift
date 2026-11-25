@@ -100,13 +100,6 @@ final class StatusBarController: NSObject, NSPopoverDelegate {
         popover.performClose(nil)
     }
 
-    /// Takes the paperclip out of the menu bar (on uninstall).
-    func remove() {
-        preview.hide()
-        popover.close()
-        NSStatusBar.system.removeStatusItem(statusItem)
-    }
-
     func popoverWillClose(_ notification: Notification) {
         preview.hide()
     }

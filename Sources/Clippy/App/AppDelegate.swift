@@ -60,15 +60,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         monitor.start()
         reclassifyOnce()
         // Trashing the installed app removes Clippy completely (see Uninstaller).
-        uninstaller.onUninstall = { [weak self] in
-            guard let self else { return }
-            self.monitor.stop()
-            self.retentionTimer?.invalidate()
-            HotKeyManager.shared.unregister(id: HotKeyID.open)
-            HotKeyManager.shared.unregister(id: HotKeyID.plainPaste)
-            self.settingsWindow.close()
-            self.statusBar.remove()
-        }
         uninstaller.start()
         registerHotKeys()
         startRetention()

@@ -27,11 +27,6 @@ final class ClipboardMonitor {
         timer?.tolerance = 0.1
     }
 
-    func stop() {
-        timer?.invalidate()
-        timer = nil
-    }
-
     /// Call after Clippy writes to the pasteboard so that write isn't recorded as a new copy.
     func ignore(changeCount: Int) {
         ownChangeCounts.insert(changeCount)

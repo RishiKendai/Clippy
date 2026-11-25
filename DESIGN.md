@@ -229,7 +229,7 @@ Neutral `--hover` fill only. Never use the accent color for hover or selection.
 
 ## 7b. Install & uninstall
 - **Install:** opening `Clippy.dmg` shows a 640 × 400 Finder window, no toolbar or status bar: a light backdrop, Clippy's icon (128px) on the left, an arrow, the Applications folder on the right, and the caption "Drag Clippy to Applications to install". The disk uses Clippy's icon.
-- **Uninstall:** quit Clippy (menu bar → Quit Clippy; macOS won't trash a running app), then drag it from Applications to the Trash. Within a few seconds everything is removed, with no prompt: clipboard history and database, settings, caches and its privacy permissions. Replacing Clippy with a newer copy keeps everything.
+- **Uninstall:** quit Clippy (menu bar → Quit Clippy; macOS won't trash a running app), then drag it from Applications to the Trash. Everything is removed within about a minute (immediately if Clippy is reinstalled from the DMG), with no prompt: clipboard history and database, settings, caches and its privacy permissions. Reinstalling the same version counts as a fresh install and starts empty; installing a newer version (an update) keeps everything.
 
 ## 8. Build notes for Claude Code
 - Platform: macOS menu bar app. Suggested structure: `NSStatusItem` + `NSPopover` (or a borderless `NSPanel` for more control) hosting a SwiftUI view; Settings in a `Settings` scene or custom `NSWindow` with toolbar-style tabs.
