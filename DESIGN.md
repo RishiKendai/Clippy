@@ -176,7 +176,8 @@ Card 2:
 
 Card 3:
 - **Clear history** — "Deletes every unpinned item. Pinned items are kept." Danger-styled button `Clear History…`.
-- Clicking it reveals an inline confirmation row inside the same card (tinted `--dangerbg`): "Delete N unpinned items? This can't be undone." with `Cancel` and primary `Clear`. Both collapse the row; `Clear` performs the delete. Leaving the tab also dismisses it.
+- **Clear pinned items** (below it, same card) — "Deletes every pinned item. History is kept." Danger-styled button `Clear Pinned…`.
+- Each button reveals an inline confirmation row directly under its own row, inside the same card (tinted `--dangerbg`): "Delete N unpinned items? This can't be undone." / "Delete N pinned items? This can't be undone." with `Cancel` and primary `Clear`. Only one is open at a time. Both buttons collapse the row; `Clear` performs the delete. Leaving the tab also dismisses it.
 
 Footnote (11px, `--sub`, 4px inset): "Pinned items never expire. Using or re-copying an item restarts its retention period."
 
@@ -228,7 +229,7 @@ Neutral `--hover` fill only. Never use the accent color for hover or selection.
 
 ## 7b. Install & uninstall
 - **Install:** opening `Clippy.dmg` shows a 640 × 400 Finder window, no toolbar or status bar: a light backdrop, Clippy's icon (128px) on the left, an arrow, the Applications folder on the right, and the caption "Drag Clippy to Applications to install". The disk uses Clippy's icon.
-- **Uninstall:** dragging Clippy from Applications to the Trash removes it completely, with no prompt: clipboard history and database, settings, caches, the login item and its privacy permissions. The paperclip leaves the menu bar right away. Replacing Clippy with a newer copy keeps everything.
+- **Uninstall:** quit Clippy (menu bar → Quit Clippy; macOS won't trash a running app), then drag it from Applications to the Trash. Within a few seconds everything is removed, with no prompt: clipboard history and database, settings, caches and its privacy permissions. Replacing Clippy with a newer copy keeps everything.
 
 ## 8. Build notes for Claude Code
 - Platform: macOS menu bar app. Suggested structure: `NSStatusItem` + `NSPopover` (or a borderless `NSPanel` for more control) hosting a SwiftUI view; Settings in a `Settings` scene or custom `NSWindow` with toolbar-style tabs.

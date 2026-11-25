@@ -157,6 +157,17 @@ private let day: TimeInterval = 86_400
         #expect(try pinned() == ["a", "b", "c"])
     }
 
+    @Test func clearPinnedKeepsHistory() throws {
+        let p = try repo.save(textClip("pinned"), sourceApp: nil, limits: limits, now: t0)
+        try repo.setPinned(p, true, limits: limits, now: t0)
+        try repo.save(textClip("history"), sourceApp: nil, limits: limits, now: t0 + 1)
+        #expect(try repo.clearPinned() == 1)
+        #expect(try repo.snapshot(for: p).isEmpty)
+        let list = try repo.list()
+        #expect(list.pinned.isEmpty)
+        #expect(list.history.map(\.plainText) == ["history"])
+    }
+
     @Test func previewMetadataIsReturned() throws {
         try repo.save(textClip("x"), sourceApp: "Safari", limits: limits, now: t0)
         let clip = try #require(try repo.list().history.first)

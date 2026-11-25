@@ -185,8 +185,11 @@ private struct HistoryTab: View {
     @ObservedObject var settings: AppSettings
     @ObservedObject var model: ClipListModel
     let theme: SettingsTheme
-    @ViewState private var confirming = false
-    @ViewState private var unpinnedCount = 0
+    /// Which clear action is waiting for confirmation, and how many items it would delete.
+    @ViewState private var confirming: ClearTarget?
+    @ViewState private var pendingCount = 0
+
+    private enum ClearTarget { case history, pinned }
 
     var body: some View {
         SettingsCard(theme: theme) {
@@ -215,36 +218,54 @@ private struct HistoryTab: View {
 
         SettingsCard(theme: theme) {
             SettingsRow(title: "Clear history", description: "Deletes every unpinned item. Pinned items are kept.", theme: theme, showSeparator: false) {
-                Button("Clear History…") {
-                    unpinnedCount = (try? model.repo.counts().history) ?? 0
-                    confirming = true
-                }
-                .buttonStyle(ClippyButtonStyle(kind: .danger))
+                Button("Clear History…") { ask(.history) }
+                    .buttonStyle(ClippyButtonStyle(kind: .danger))
             }
-            if confirming {
-                HStack(spacing: 16) {
-                    Text("Delete \(unpinnedCount) unpinned \(unpinnedCount == 1 ? "item" : "items")? This can’t be undone.")
-                        .font(.system(size: 12))
-                    Spacer(minLength: 0)
-                    Button("Cancel") { confirming = false }
-                        .buttonStyle(ClippyButtonStyle())
-                        .keyboardShortcut(.cancelAction)
-                    Button("Clear") {
-                        _ = try? model.repo.clearUnpinned()
-                        confirming = false
-                        model.reload()
-                    }
-                    .buttonStyle(ClippyButtonStyle(kind: .primary))
+            if confirming == .history {
+                confirmRow("Delete \(pendingCount) unpinned \(pendingCount == 1 ? "item" : "items")? This can’t be undone.") {
+                    _ = try? model.repo.clearUnpinned()
                 }
-                .padding(.vertical, 10)
-                .padding(.horizontal, 14)
-                .frame(minHeight: 44)
-                .background(theme.dangerBg)
+            }
+            SettingsRow(title: "Clear pinned items", description: "Deletes every pinned item. History is kept.", theme: theme) {
+                Button("Clear Pinned…") { ask(.pinned) }
+                    .buttonStyle(ClippyButtonStyle(kind: .danger))
+            }
+            if confirming == .pinned {
+                confirmRow("Delete \(pendingCount) pinned \(pendingCount == 1 ? "item" : "items")? This can’t be undone.") {
+                    _ = try? model.repo.clearPinned()
+                }
             }
         }
-        .onDisappear { confirming = false }
+        .onDisappear { confirming = nil }
 
         Footnote(text: "Pinned items never expire. Using or re-copying an item restarts its retention period.", theme: theme)
+    }
+
+    private func ask(_ target: ClearTarget) {
+        let counts = try? model.repo.counts()
+        pendingCount = (target == .history ? counts?.history : counts?.pinned) ?? 0
+        confirming = target
+    }
+
+    /// Inline danger confirmation (DESIGN.md §5.2): Cancel collapses it, Clear deletes.
+    private func confirmRow(_ message: String, clear: @escaping () -> Void) -> some View {
+        HStack(spacing: 16) {
+            Text(message).font(.system(size: 12))
+            Spacer(minLength: 0)
+            Button("Cancel") { confirming = nil }
+                .buttonStyle(ClippyButtonStyle())
+                .keyboardShortcut(.cancelAction)
+            Button("Clear") {
+                clear()
+                confirming = nil
+                model.reload()
+            }
+            .buttonStyle(ClippyButtonStyle(kind: .primary))
+        }
+        .padding(.vertical, 10)
+        .padding(.horizontal, 14)
+        .frame(minHeight: 44)
+        .background(theme.dangerBg)
     }
 }
 

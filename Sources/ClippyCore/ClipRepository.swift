@@ -138,6 +138,15 @@ public final class ClipRepository: @unchecked Sendable {
         }
     }
 
+    /// Deletes every pinned clip. Returns how many were deleted.
+    @discardableResult
+    public func clearPinned() throws -> Int {
+        try locked {
+            try db.query("DELETE FROM clips WHERE pinned = 1")
+            return db.changes
+        }
+    }
+
     /// Deletes unpinned clips not used within `keepDays`. Returns how many were deleted.
     @discardableResult
     public func purgeExpired(keepDays: Int, now: Date = Date()) throws -> Int {
