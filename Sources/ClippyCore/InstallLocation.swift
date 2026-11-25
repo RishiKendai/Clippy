@@ -35,4 +35,52 @@ public enum InstallLocation {
             lib + "/WebKit/\(bundleID)",
         ]
     }
+
+    // MARK: Cleanup agent
+    //
+    // Finder won't trash an app while it's running, so Clippy is never running when it's
+    // uninstalled. A tiny LaunchAgent (system tools only, nothing inside the app bundle) watches
+    // the app bundle and cleans up once it's gone. It watches the bundle itself: launchd never
+    // fires for /Applications (a firmlink) when an item inside it is removed.
+
+    public static func cleanupAgentLabel(bundleID: String) -> String { bundleID + ".cleanup" }
+
+    public static func cleanupAgentPath(bundleID: String, home: String = NSHomeDirectory()) -> String {
+        home + "/Library/LaunchAgents/\(cleanupAgentLabel(bundleID: bundleID)).plist"
+    }
+
+    /// Shell script run by the agent whenever the app bundle changes. If the app is still (or
+    /// again, after an update) at `appPath` a few seconds later, it does nothing. Otherwise it
+    /// deletes Clippy's data, preferences and privacy permissions, then removes itself.
+    public static func cleanupScript(appPath: String, bundleID: String, home: String = NSHomeDirectory()) -> String {
+        let label = cleanupAgentLabel(bundleID: bundleID)
+        let removals = dataLocations(bundleID: bundleID, home: home).map { "rm -rf \(shellQuote($0))" }
+        return ([
+            "sleep 3",
+            "[ -e \(shellQuote(appPath)) ] && exit 0",
+            "pkill -x Clippy",
+            "defaults delete \(shellQuote(bundleID)) >/dev/null 2>&1",
+        ] + removals + [
+            "tccutil reset All \(shellQuote(bundleID)) >/dev/null 2>&1",
+            "rm -f \(shellQuote(cleanupAgentPath(bundleID: bundleID, home: home)))",
+            "launchctl bootout gui/$(id -u)/\(label) >/dev/null 2>&1",
+            "exit 0",
+        ]).joined(separator: "\n")
+    }
+
+    /// The LaunchAgent property list (WatchPaths on the app bundle).
+    public static func cleanupAgentPlist(appPath: String, bundleID: String, home: String = NSHomeDirectory()) -> [String: Any] {
+        [
+            "Label": cleanupAgentLabel(bundleID: bundleID),
+            "ProgramArguments": ["/bin/sh", "-c", cleanupScript(appPath: appPath, bundleID: bundleID, home: home)],
+            "WatchPaths": [appPath],
+            // Shows the agent as Clippy's in System Settings → Login Items.
+            "AssociatedBundleIdentifiers": [bundleID],
+            "ProcessType": "Background",
+        ]
+    }
+
+    static func shellQuote(_ s: String) -> String {
+        "'" + s.replacingOccurrences(of: "'", with: "'\\''") + "'"
+    }
 }

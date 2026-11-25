@@ -21,7 +21,7 @@ Clippy is a macOS menu bar clipboard manager (Swift, SwiftUI + AppKit, SQLite). 
 - **Visible rows:** History and Pinned each show 10 rows by default (5–15 in Settings), then scroll; both shrink to fit the screen.
 - When "Ignore passwords and secrets" is on, skip concealed, transient and auto-generated content (nspasteboard.org markers).
 - Nothing leaves the Mac.
-- **Trash = uninstall.** When the installed app (in /Applications or ~/Applications) is moved to the Trash while running, it deletes its database, preferences and caches, unregisters the login item, resets its privacy permissions and quits (`Uninstaller`, `InstallLocation`). Dev builds in `build/` never do this. Replacing the app with an update doesn't count.
+- **Trash = uninstall.** When the installed app (in /Applications or ~/Applications) is moved to the Trash, its database, preferences, caches and privacy permissions are deleted (`Uninstaller`, `InstallLocation`). Finder refuses to trash a running app, so this is done by a cleanup LaunchAgent (`~/Library/LaunchAgents/com.clippy.app.cleanup.plist`) that the installed app writes at launch. Dev builds in `build/` never install it. Replacing the app with an update doesn't count.
 
 ## Architecture
 ```
@@ -36,7 +36,7 @@ Sources/Clippy/            the menu bar app
              PreviewPanel.swift (hover preview card beside the popover), Windows.swift (SettingsWindowController)
   Services/  AppSettings (UserDefaults), ClipboardMonitor (polls changeCount), PasteService (as-is / plain / ⌘V synth / restore),
              SystemServices.swift (LoginItemManager, Permissions, HotKeyManager, KeyCode),
-             Uninstaller (watches its own bundle; trash → wipe data and quit)
+             Uninstaller (installs the cleanup LaunchAgent; also watches its own bundle while running)
   UI/        Theme (DESIGN.md tokens + ViewState alias), ClipListModel (popover state, ThumbnailCache), PopoverView, ClipRow,
              SettingsView (tabs), Components/Controls.swift (ClippySwitch, SegmentedControl, StepperControl, ClippyButtonStyle, LinkButton)
 Tests/ClippyTests/         swift-testing: ClipRepositoryTests, PasteboardCodecTests
@@ -95,3 +95,4 @@ Makefile                   entry point for everything below
 - 2026-11-25: History/Pinned visible rows are settings (default 10, 5–15). When both don't fit on screen the lists shrink (shorter one keeps its height if it fits in half). `maxContentHeight` is set from the screen each time the popover opens.
 - 2026-11-25: The DMG is `dist/Clippy.dmg` (no version in the name) with a styled drag-to-install window. The layout is written by Finder via AppleScript (built-in tools only; downloading `dmgbuild` was not an option).
 - 2026-11-25: Owner asked that trashing the app removes everything. macOS has no uninstall hook, so the running installed app watches its bundle (`O_EVTONLY` + `F_GETPATH`). After 2 s, if the bundle is in the Trash or gone and nothing replaced it, it wipes data, login item and TCC entries, removes its status item and exits. If Clippy isn't running when it's trashed, nothing can clean up.
+- 2026-11-25: Trash-to-uninstall now runs from a LaunchAgent, because Finder won't move a running app to the Trash, so the in-app watcher never fired in practice. The agent is a `/bin/sh -c` script (system tools only), `WatchPaths` = the app bundle itself (watching `/Applications` never fires because it's a firmlink), `AssociatedBundleIdentifiers` = Clippy. It waits 3 s, exits if the app is back (update / `make install`), otherwise deletes data, prefs and TCC entries and boots itself out. Verified live: quit + trash → wiped in under 8 s; `make install` → kept.

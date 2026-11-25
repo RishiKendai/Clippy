@@ -35,4 +35,23 @@ import Testing
         #expect(paths.contains("/Users/me/Library/Preferences/com.clippy.app.plist"))
         #expect(paths.allSatisfy { $0.hasPrefix("/Users/me/Library/") })
     }
+
+    @Test func cleanupAgentWatchesTheAppAndOnlyActsWhenItIsGone() throws {
+        let script = InstallLocation.cleanupScript(appPath: app, bundleID: "com.clippy.app", home: "/Users/me")
+        let lines = script.split(separator: "\n").map(String.init)
+        // Waits, then exits early while the app (or an update of it) is still installed.
+        #expect(lines.prefix(2) == ["sleep 3", "[ -e '/Applications/Clippy.app' ] && exit 0"])
+        #expect(lines.contains("rm -rf '/Users/me/Library/Application Support/Clippy'"))
+        #expect(lines.contains("tccutil reset All 'com.clippy.app' >/dev/null 2>&1"))
+        #expect(lines.contains("rm -f '/Users/me/Library/LaunchAgents/com.clippy.app.cleanup.plist'"))
+
+        let plist = InstallLocation.cleanupAgentPlist(appPath: app, bundleID: "com.clippy.app", home: "/Users/me")
+        #expect(plist["Label"] as? String == "com.clippy.app.cleanup")
+        #expect(plist["WatchPaths"] as? [String] == ["/Applications/Clippy.app"])
+        #expect((plist["ProgramArguments"] as? [String])?.last == script)
+    }
+
+    @Test func shellQuotingSurvivesApostrophes() {
+        #expect(InstallLocation.shellQuote("/Users/o'neil/x") == "'/Users/o'\\''neil/x'")
+    }
 }
